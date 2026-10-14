@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Push Notifications</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        p {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+        button {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #219150;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #e74c3c;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>SMS Push Receiver</h2>
+        <p>Enable notifications to receive background alerts whenever a new SMS is added to your Google Sheet.</p>
+        <button id="notifyBtn" onclick="enableNotifications()">Enable Notifications</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // CHANGE 1: Paste your PUBLIC VAPID KEY inside the quotes below
+        const PUBLIC_VAPID_KEY = 'BDss_zpq3LAVp5drkz9NbEWBzJ-YqIRn5XOjcSi8IwsjVzwOGpMN4XZ4DAZkoxrHw9qcZxRcnJxQNYWuv9XVDIY';
+
+        const btn = document.getElementById('notifyBtn');
+        const statusDiv = document.getElementById('status');
+
+        async function enableNotifications() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                statusDiv.innerText = "Push notifications are not supported in this browser.";
+                statusDiv.style.color = "#e74c3c";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Registering...";
+
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    throw new Error("Permission not granted for notifications.");
+                }
+
+                const registration = await navigator.serviceWorker.register('./sw.js');
+                console.log('Service Worker registered successfully');
+
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+                });
+
+                // CHANGE 2: Replace the URL below with your actual Render server URL
+                await fetch('https://package-json-4oet.onrender.com//save-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(subscription)
+                });
+                
+                statusDiv.style.color = "#27ae60";
+                statusDiv.innerText = "Success! You are subscribed to background notifications. You can now close this tab.";
+                btn.innerText = "Notifications Enabled";
+
+            } catch (error) {
+                console.error('Error enabling notifications:', error);
+                statusDiv.style.color = "#e74c3c";
+                statusDiv.innerText = "Error: " + error.message;
+                btn.disabled = false;
+                btn.innerText = "Try Again";
+            }
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+    </script>
+
+</body>
+</html>
