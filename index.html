@@ -91,13 +91,18 @@
                     throw new Error("Permission not granted for notifications.");
                 }
 
-                const registration = await navigator.serviceWorker.register('./sw.js');
-                console.log('Service Worker registered successfully');
+                // 1. Register the Service Worker
+await navigator.serviceWorker.register('./sw.js');
+console.log('Service Worker registered, waiting for activation...');
 
-                const subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
-                });
+// 2. WAIT for the Service Worker to be fully active and ready
+const registration = await navigator.serviceWorker.ready;
+
+// 3. Now it is safe to subscribe
+const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+});
 
                 // CHANGE 2: Replace the URL below with your actual Render server URL
                 await fetch('https://package-json-4oet.onrender.com//save-subscription', {
